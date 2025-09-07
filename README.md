@@ -1,96 +1,107 @@
-        ## **Singapore Company ETL and LLM Enrichment Pipeline**
-Overview
-This project implements a comprehensive, end-to-end Extract, Transform, and Load (ETL) pipeline designed to enrich a seed dataset of Singaporean companies. The pipeline automates the discovery of official company websites, scrapes publicly available contact and social media information, and utilizes a local Large Language Model (LLM) for advanced data enrichment and normalization. The final, structured data is then loaded into a PostgreSQL database for a robust and queryable knowledge base.
+### Singapore Company ETL and LLM Enrichment Pipeline
 
-Solution Summary
-Approach
-The pipeline follows a linear, batch-processing model. It starts with a seed CSV file, discovers company websites through automated Google searches, scrapes essential information, and enriches the data using a locally-hosted LLM. The final output is a populated relational database.
+### How to Run
 
-Flow
-Seed CSV -> Google Search (Selenium) -> Website Scraping (Requests/BS4) -> LLM Enrichment (Ollama Mistral) -> DB Load (SQLAlchemy) -> PostgreSQL
+1. **Prerequisites**:
+   * Install **ChromeDriver** to match your Chrome browser version.
+   * Set up a local **PostgreSQL** instance.
+   * Install **Ollama** and download the **Mistral** model:
+     ```
+     ollama run mistral
+     ```
+   * Ensure your `config/settings.py` file contains the correct `DB_URI`.
+   * Place your seed data in `data/input/rrr_data.csv`.
+2. **Execution**:
 
-Key Insights from Market Study
-Web Presence: Most Singapore-registered companies have a .sg domain or a clear, locally-focused web presence. A simple name-token matching approach proves effective for discovering websites for many small and medium-sized enterprises (SMEs).
 
-Contact Discoverability: Contact emails and phone numbers are frequently found on landing or dedicated "Contact Us" pages. Social media links, particularly to LinkedIn, are also common and easy to extract.
+### Solution Summary
+- **Approach**: End-to-end ETL pipeline that enriches a seed CSV of Singapore companies, discovers official websites via automated Google search, scrapes contact/social/meta data, performs LLM-based enrichment, and loads structured results into PostgreSQL using SQLAlchemy.
+- **Flow**: Seed CSV → Google Search (Selenium) → Website Scraping (Requests/BS4) → LLM Enrichment (Ollama mistral) → DB Load (SQLAlchemy) → PostgreSQL.
 
-Industry Cues: Initial industry hints can be reliably inferred from a company's website meta description and first-paragraph text. However, a local LLM is invaluable for normalizing these descriptions into consistent industry verticals.
+### Market Study Insights
+- **Web presence**: Most Singapore-registered entities have a `.sg` domain or Singapore-specific landing pages; heuristic matching via name tokens works for many SMEs.
+- **Contact discoverability**: Contact emails/phones are frequently available on landing/contact pages; social links (LinkedIn especially) are common and easy to extract.
+- **Industry cues**: Meta descriptions and first-paragraph content reliably hint broad industries; precise verticals often need LLM normalization.
+- **LLM value-add**: Useful for normalizing industries, deriving company size hints, and extracting product/service descriptors from unstructured text.
 
-LLM Value-Add: The LLM is a powerful tool for deriving insights from unstructured text. It excels at normalizing industries, estimating company size, and extracting product/service descriptors with high accuracy.
+### Sources of Information
+- **Seed data**: `data/input/rrr_data.csv` (local CSV).
+- **Website discovery**: Live Google Search via Selenium WebDriver (headless Chrome); access by automated browsing.
+- **Website content**: Company sites fetched with `requests` and parsed via `BeautifulSoup`.
+- **LLM enrichment**: Local `ollama` runtime using the `mistral` model; accessed by shelling out with `subprocess` and parsing JSON response.
+- **Database**: PostgreSQL `company_db` at `config/settings.py: DB_URI`; accessed via SQLAlchemy.
 
-Technology Stack
-Web Discovery: Selenium WebDriver (with ChromeDriver): Handles dynamic web content, including cookie consent banners, and reliably interacts with Google search result pages.
-
-Web Scraping: Requests and BeautifulSoup: A lightweight and efficient combination for parsing static HTML content and extracting specific data points like emails, phones, and social links.
-
-LLM Integration: Ollama and the Mistral model: Chosen for its ability to provide private, predictable, and cost-effective local inference. The model's strong instruction-following capability is ideal for structured data extraction in JSON format.
-
-Database: PostgreSQL: A robust, open-source relational database that ensures data integrity and supports complex queries.
-
-ORM: SQLAlchemy: Provides a clean, Pythonic interface for interacting with the PostgreSQL database, simplifying entity modeling and ensuring idempotent data loads.
-
-Orchestration: Python: The entire pipeline is orchestrated using a simple Python script, pipeline/main.py, which is well-suited for a linear batch process.
-
-Architecture
-The pipeline follows a staged architecture, with each step producing an intermediate CSV file that acts as a checkpoint.
-
-data/input/rrr_data.csv -> rrr_data_with_websites.csv (after Google Search) -> output/rrr_data_enriched.csv (after Site Scraping) -> output/rrr_data_llm.csv (after LLM Enrichment) -> PostgreSQL company_db tables (after DB Load)
-
-Configuration for the database connection and LLM model is managed in config/settings.py.
-
-Data Model (Entity-Relationship)
-The final data is loaded into four distinct tables to maintain a clean relational structure.
-
-companies:
-
-company_id (PK), uen, company_name, website, hq_country, industry, company_size, number_of_employees, is_it_delisted, stock_exchange_code, revenue, founding_year
-
-company_contacts:
-
-contact_id (PK), company_id (FK), contact_email, contact_phone, source_of_data
-
-company_socials:
-
-social_id (PK), company_id (FK), platform, url, source_of_data
-
-company_keywords:
-
-keyword_id (PK), company_id (FK), keyword, source_of_data
-
-Brief Documentation
-How to Run
-Prerequisites:
-
-Install ChromeDriver to match your Chrome browser version.
-
-Set up a local PostgreSQL instance.
-
-Install Ollama and download the Mistral model:
-
+### AI Model Used & Rationale
+- **Model**: `mistral` via Ollama (open-source, local inference).
+- **Why**:
+  - Runs on local hardware (no data egress), low latency, zero external dependency risks.
+  - Strong instruction-following for short JSON extraction tasks.
+- **Prompt style** (example extract):
+```text
+You are an assistant that extracts structured company info.
+From the following text, extract:
+- keywords (5–10)
+- normalized_industry
+- company_size
+- products_offered
+- services_offered
+Respond ONLY in JSON keys:
+["keywords","normalized_industry","company_size","products_offered","services_offered"]
+Text:
+{excess_data_snippet}
+```
+- **API interaction**:
+```bash
 ollama run mistral
+```
+Invoked via Python `subprocess.run`, then parse first/last JSON braces and `json.loads`.
 
-Ensure your config/settings.py file contains the correct DB_URI.
+### Technology Justification
+- **ETL orchestration**: Simple Python script (`pipeline/main.py`) is sufficient and transparent for a linear batch pipeline; no heavy scheduler needed yet.
+- **Web discovery**: Selenium WebDriver handles dynamic consent/Google pages robustly compared to plain HTTP.
+- **Scraping**: `requests` + `BeautifulSoup` are reliable for static content extraction with light heuristics for social/contact info.
+- **LLM**: Ollama with `mistral` offers private, reproducible enrichment without external API limits or costs.
+- **Database**: PostgreSQL provides strong relational integrity and indexing; SQLAlchemy ORM makes idempotent upsert-like flows simpler.
 
-Place your seed data in data/input/rrr_data.csv.
+### Architecture Diagram
+[See diagram above; if not visible, here’s the flow text]
+- Seed CSV → Google Search → CSV with websites → Site Scraper → Enriched CSV → LLM Enrichment → Final CSV → DB Loader → PostgreSQL
+- Config (`DB_URI`, `OLLAMA_MODEL`) parameterizes components.
 
-Execution:
+### Entity-Relationship Diagram (ERD)
+[See ERD above; if not visible, key entities]
+- `companies` 1—* `company_contacts`
+- `companies` 1—* `company_socials`
+- `companies` 1—* `company_keywords`
 
-python pipeline/main.py
+### Brief Documentation
+- **Entity matching**:
+  - Website discovery: Clean company names by removing suffixes (e.g., “Pte Ltd”); require `.sg` domain and exclude generic `google`, `companies` URLs; ensure at least one company word appears in domain.
+  - DB loading: Prefer matching by `uen` if present; fallback to `company_name`. Insert if not found; append related contacts/socials/keywords.
+- **Data quality strategies**:
+  - Defensive scraping: Normalize URLs, handle timeouts, and restrict to HTTPS; basic validation on extracted emails/phones.
+  - Incremental saves: CSV checkpoints during Google search and scraping to avoid loss; periodic writes during LLM enrichment.
+  - Normalization: LLM consolidates free text into controlled fields; keywords deduplicated when splitting comma-separated values.
+  - Observability: Console progress logs per stage; clear failure messages for DB load, with pipeline step numbering.
 
-Data Quality and Extensibility
-Data Quality: The pipeline includes defensive measures such as URL validation, timeouts, basic regex validation for contact information, and incremental CSV checkpoints to prevent progress loss.
+`
+- **Outputs**:
+  - `rrr_data_with_websites.csv` (intermediate)
+  - `output/rrr_data_enriched.csv`
+  - `output/rrr_data_llm.csv`
+  - Database: tables populated via `db/models.py` mappings.
 
-Extensibility: The modular design allows for easy expansion:
+- **Extensibility**:
+  - Swap LLM model via `config/settings.py: OLLAMA_MODEL`.
+  - Add more extractors in `site_scraper.py` (e.g., Twitter, YouTube).
+  - Introduce retry/backoff or proxy rotation in Google search if needed.
 
-Swap the LLM model by simply changing the OLLAMA_MODEL variable in config/settings.py.
+- **Risks**:
+  - Google automation may rate-limit; throttle and randomize sleeps.
+  - Some sites are JS-heavy; consider headless browser scraping for such cases.
+  - LLM JSON parsing may fail; current code extracts JSON substring defensively.
 
-Add new scraping logic to site_scraper.py to capture additional information (e.g., Twitter or YouTube links).
-
-Enhance web discovery with retries and proxy rotation to mitigate rate-limiting.
-
-Known Risks
-Google Rate-Limiting: Automated Google search can lead to temporary IP blocks. This is mitigated by using randomized backoff and pacing.
-
-LLM Output Parsing: As LLM output can be unpredictable, the pipeline includes defensive JSON parsing with robust error handling.
-
-This project provides a powerful, automated solution for creating a structured and enriched database of company information from public web sources.
+- **Next steps**:
+  - Add idempotent upserts to avoid duplicate socials/keywords.
+  - Centralize logging/metrics.
+  - Optionally move to a workflow tool (e.g., Airflow) if scheduling/monitoring becomes necessary.
