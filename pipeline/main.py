@@ -24,7 +24,7 @@ def main():
         raise FileNotFoundError(f"Input CSV not found at {INPUT_CSV}")
 
     print("[1/4] Running Google search to find company websites...")
-    #run_google_search(INPUT_CSV, GOOGLE_OUTPUT_CSV)
+    run_google_search(INPUT_CSV, GOOGLE_OUTPUT_CSV)
 
     print("[2/4] Scraping company websites for contact and social data...")
     run_site_scraper()
