@@ -1,0 +1,123 @@
+### Solution Summary
+- **Approach**: End-to-end ETL pipeline that enriches a seed CSV of Singapore companies, discovers official websites via automated Google search, scrapes contact/social/meta data, performs LLM-based enrichment, and loads structured results into PostgreSQL using SQLAlchemy.
+- **Flow**: Seed CSV → Google Search (Selenium) → Website Scraping (Requests/BS4) → LLM Enrichment (Ollama mistral) → DB Load (SQLAlchemy) → PostgreSQL.
+
+### Market Study Insights
+- **Web presence**: Most Singapore-registered entities have a .sg domain or SG-specific landing pages; name-token matching works for many SMEs.
+- **Contact discoverability**: Contact emails/phones are frequently available on landing/contact pages; social links (especially LinkedIn) are common and easy to extract.
+- **Industry cues**: Meta descriptions and first-paragraph text reliably hint broad industries; precise verticals often benefit from LLM normalization.
+- **LLM value-add**: Useful for normalizing industries, deriving company size hints, and extracting product/service descriptors from unstructured text.
+
+### Sources of Information (with access methods)
+- **Seed data**: data/input/rrr_data.csv (local CSV; read via pandas).
+- **Website discovery**: Live Google Search using Selenium WebDriver (Chrome). Access method: automated browser session with query "<company_name>" Singapore site:.sg and cookie-handling. Module: google_search.py.
+- **Website content**: Company sites fetched via requests and parsed with BeautifulSoup for emails, phones, social links, and meta description. Module: site_scraper.py.
+- **LLM enrichment**: Local Ollama runtime with the mistral model. Access method: subprocess.run(["ollama", "run", "mistral"]), JSON extracted from response. Module: enrichment/ollama_integration.py.
+- **Database**: PostgreSQL company_db. Access method: SQLAlchemy ORM using config/settings.py: DB_URI and models in db/models.py. Loading script: db/load_csv_to_db.py.
+
+### AI Model Used & Rationale
+- **Model**: mistral via Ollama (open-source, local inference).
+- **Rationale**:
+  - Private/local inference (no data egress), predictable latency, and no external API limits/costs.
+  - Strong instruction-following for compact JSON extraction tasks.
+- **Prompt style (example)**:
+You are an assistant that extracts structured company info.
+From the following text, extract:
+- keywords (5–10)
+- normalized_industry
+- company_size
+- products_offered
+- services_offered
+Respond ONLY in JSON keys:
+["keywords","normalized_industry","company_size","products_offered","services_offered"]
+Text:
+{excess_data_snippet}
+- **API interaction**:
+  - Command: ollama run mistral
+  - Integration: Python subprocess.run(...); parse substring between first { and last }; json.loads(...) to dict.
+
+### Technology Justification
+- **ETL orchestration**: Simple Python driver (pipeline/main.py) suits a linear batch pipeline without the overhead of a scheduler.
+- **Web discovery**: Selenium WebDriver handles dynamic consent banners and Google result rendering more robustly than plain HTTP.
+- **Scraping**: requests + BeautifulSoup for reliable static extraction and manageable complexity.
+- **LLM**: Ollama with mistral provides private, reproducible enrichment without vendor lock-in or API quotas.
+- **Database**: PostgreSQL for relational integrity and indexing; SQLAlchemy ORM for clean entity modeling and idempotent upsert-like flows.
+
+### Architecture Diagram (Mermaid)
+```mermaid
+graph TD
+A["Seed CSV: data/input/rrr_data.csv"] --> B["Google Search (Selenium WebDriver)"]
+B --> C["CSV with websites: rrr_data_with_websites.csv"]
+C --> D["Site Scraper (Requests + BeautifulSoup)"]
+D --> E["Enriched CSV: output/rrr_data_enriched.csv"]
+E --> F["LLM Enrichment (Ollama mistral)"]
+F --> G["Final CSV: output/rrr_data_llm.csv"]
+G --> H["DB Loader (SQLAlchemy ORM)"]
+H --> I["PostgreSQL: company_db"]
+J["Config: config/settings.py (DB_URI, OLLAMA_MODEL)"] -.-> F
+J -.-> I
+```
+
+### Entity-Relationship Diagram (ERD) (Mermaid)
+```mermaid
+erDiagram
+COMPANIES {
+  INT company_id PK
+  VARCHAR uen
+  VARCHAR company_name
+  VARCHAR website
+  VARCHAR hq_country
+  VARCHAR industry
+  VARCHAR company_size
+  INT number_of_employees
+  BOOLEAN is_it_delisted
+  VARCHAR stock_exchange_code
+  NUMERIC revenue
+  INT founding_year
+}
+COMPANY_CONTACTS {
+  INT contact_id PK
+  INT company_id FK
+  VARCHAR contact_email
+  VARCHAR contact_phone
+  VARCHAR source_of_data
+}
+COMPANY_SOCIALS {
+  INT social_id PK
+  INT company_id FK
+  VARCHAR platform
+  VARCHAR url
+  VARCHAR source_of_data
+}
+COMPANY_KEYWORDS {
+  INT keyword_id PK
+  INT company_id FK
+  VARCHAR keyword
+  VARCHAR source_of_data
+}
+COMPANIES ||--o{ COMPANY_CONTACTS : has
+COMPANIES ||--o{ COMPANY_SOCIALS : has
+COMPANIES ||--o{ COMPANY_KEYWORDS : has
+```
+
+### Brief Documentation
+- **Entity matching**
+  - Website discovery: Clean company names (remove suffixes like "Pte Ltd"); prefer .sg domains; exclude generic google/companies hosts; require at least one cleaned company token in domain.
+  - DB load: Match by uen when present; fallback to company_name. Insert if not found; attach related contacts/socials/keywords.
+- **Data quality**
+  - Defensive scraping: Normalize/validate URLs; timeouts; basic regex validation for emails/phones.
+  - Incremental checkpoints: Periodic CSV writes in search, scraping, and LLM stages to avoid progress loss.
+  - Normalization: LLM produces controlled fields; keywords deduplicated when splitting comma-separated values.
+  - Observability: Step-numbered console logs; clear error output for DB load.
+- **How to run**
+  - Prereqs: ChromeDriver, PostgreSQL; ensure config/settings.py DB_URI is correct.
+  - Input: data/input/rrr_data.csv.
+  - Execute: python pipeline/main.py.
+  - Outputs: rrr_data_with_websites.csv, output/rrr_data_enriched.csv, output/rrr_data_llm.csv, and populated DB tables.
+- **Extensibility**
+  - Swap LLM model via config/settings.py: OLLAMA_MODEL.
+  - Expand site_scraper.py to capture additional platforms (e.g., Twitter, YouTube).
+  - Add retries/proxy rotation for web search; consider headless browser scraping for JS-heavy sites.
+- **Risks**
+  - Google automation can rate-limit; use randomized backoff and pacing.
+  - JSON parsing from LLM output can fail; defensive substring extraction is in place.
