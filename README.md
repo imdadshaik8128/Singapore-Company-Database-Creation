@@ -25,7 +25,7 @@
 - **LLM value-add**: Useful for normalizing industries, deriving company size hints, and extracting product/service descriptors from unstructured text.
 
 ### Sources of Information
-- **Seed data**: The company dataset was collected from data.gov.sg Multiple sources were merged into a single consolidated CSV file. The data was then filtered to retain only companies with an active (live) status, resulting in a clean and reliable dataset used as the foundation for the pipeline.
+- **Seed data**: The company dataset was collected from data.gov.sg Multiple sources were merged into a single consolidated CSV file. The data was then preprocessed to retain only companies with an active (live) status, resulting in a clean and reliable dataset used as the foundation for the pipeline.
 - **Website discovery**: Live Google Search via Selenium WebDriver (headless Chrome); access by automated browsing.
 - **Website content**: Company sites fetched with `requests` and parsed via `BeautifulSoup`.
 - **LLM enrichment**: Local `ollama` runtime using the `mistral` model; accessed by shelling out with `subprocess` and parsing JSON response.
@@ -131,4 +131,4 @@ Invoked via Python `subprocess.run`, then parse first/last JSON braces and `json
 - If the challenges around data fetching, API access, and hardware limitations were resolved, the pipeline would run significantly faster, more reliably, and at scale.  
 - With premium API access and better compute resources, the system could fetch company data with higher accuracy, avoid rate-limiting issues, and handle large datasets without interruptions.
 - It is now capable of working end-to-end with any dataset, provided the input data is available, and can reliably perform enrichment, normalization, and structured storage at scale.
-## Read the Singapore Company Database Creation.ipynb for better understanding 
+## Please look into the  Singapore Company Database Creation.ipynb for better understanding 
