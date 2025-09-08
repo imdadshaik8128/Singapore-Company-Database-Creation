@@ -105,3 +105,29 @@ Invoked via Python `subprocess.run`, then parse first/last JSON braces and `json
   - Add idempotent upserts to avoid duplicate socials/keywords.
   - Centralize logging/metrics.
   - Optionally move to a workflow tool (e.g., Airflow) if scheduling/monitoring becomes necessary.
+
+# Challenges Faced
+
+## 1. Data Source Tradeoff
+- I did not have access to premium APIs such as Google Custom Search, Bing Web Search, or other paid data providers.  
+- Free or limited APIs and scraping approaches impose constraints such as request limits, incomplete data, and frequent blocking.  
+- If API keys for premium search services were available, extraction would have been far more reliable, with stable responses and fewer issues with rate limiting or being blocked.  
+
+## 2. Rate Limiting and Blocking
+- Continuous website collection led to `429 Too Many Requests` errors.  
+- Search engines and directories often block or throttle scrapers after a few hundred requests.  
+- Without APIs or proxy pools, scraping had to be slowed down with artificial delays, reducing efficiency.  
+
+## 3. Laptop Limitations
+- Running Playwright with a full Chromium browser for 10,000+ companies consumed significant memory and CPU.  
+- Limited RAM on my laptop made it difficult to run long scraping sessions without crashes or major slowdowns.  
+
+## 4. Accuracy
+- Search engines frequently returned unrelated results such as YouTube, LinkedIn, or business directories instead of official websites.  
+- Additional filtering logic was required to exclude social media and directories, but some incorrect results may still slip through.  
+
+# Important Note   
+
+## If the challenges around data fetching, API access, and hardware limitations were resolved, the pipeline would run significantly faster, more reliably, and at scale.  
+## With premium API access and better compute resources, the system could fetch company data with higher accuracy, avoid rate-limiting issues, and handle large datasets without interruptions.
+## It is now capable of working end-to-end with any dataset, provided the input data is available, and can reliably perform enrichment, normalization, and structured storage at scale.
