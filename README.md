@@ -25,7 +25,7 @@
 - **LLM value-add**: Useful for normalizing industries, deriving company size hints, and extracting product/service descriptors from unstructured text.
 
 ### Sources of Information
-- **Seed data**: `data/input/rrr_data.csv` (local CSV).
+- **Seed data**: The company dataset was collected from data.gov.sg Multiple sources were merged into a single consolidated CSV file. The data was then filtered to retain only companies with an active (live) status, resulting in a clean and reliable dataset used as the foundation for the pipeline.
 - **Website discovery**: Live Google Search via Selenium WebDriver (headless Chrome); access by automated browsing.
 - **Website content**: Company sites fetched with `requests` and parsed via `BeautifulSoup`.
 - **LLM enrichment**: Local `ollama` runtime using the `mistral` model; accessed by shelling out with `subprocess` and parsing JSON response.
