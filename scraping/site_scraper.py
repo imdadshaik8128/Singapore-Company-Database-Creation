@@ -84,7 +84,7 @@ def run_site_scraper():
         if pd.isna(website) or not website.strip():
             continue
 
-        print(f"🔎 Scraping {website} ...")
+        print(f" Scraping {website} ...")
         details = scrape_website(website)
         for key, value in details.items():
             df.at[idx, key] = value

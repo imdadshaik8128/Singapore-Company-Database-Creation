@@ -119,9 +119,9 @@ def run_google_search(input_csv, output_csv):
 
             if website:
                 found += 1
-                print(f"✓ Found: {website}")
+                print(f" Found: {website}")
             else:
-                print("✗ Not found")
+                print(" Not found")
 
             processed += 1
             if processed % 5 == 0:

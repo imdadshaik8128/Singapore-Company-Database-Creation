@@ -2,12 +2,12 @@ import pandas as pd
 import subprocess
 import json
 
-INPUT_CSV = "data/output/rrr_data_enriched.csv"
-OUTPUT_CSV = "data/output/rrr_data_llm.csv"
+INPUT_CSV = "output/rrr_data_enriched.csv"
+OUTPUT_CSV = "output/rrr_data_llm.csv"
 
 
 def query_ollama(text: str) -> dict:
-    """Send excess data to Ollama to extract structured info."""
+    """Send text to Ollama and parse enrichment fields."""
     prompt = f"""
     You are an assistant that extracts structured company info.
 
@@ -27,20 +27,20 @@ def query_ollama(text: str) -> dict:
 
     try:
         result = subprocess.run(
-            ["ollama", "run", "mistral"],  # you can switch model
+            ["ollama", "run", "mistral"],  # change model if needed
             input=prompt,
             text=True,
             capture_output=True,
-            timeout=60,
-            encoding="utf-8",   
-            errors="ignore"
+            timeout=60
         )
         response = result.stdout.strip()
 
+        # Extract JSON safely
         start = response.find("{")
         end = response.rfind("}") + 1
         if start != -1 and end != -1:
-            return json.loads(response[start:end])
+            response = response[start:end]
+            return json.loads(response)
 
     except Exception as e:
         print(f" Ollama failed: {e}")
@@ -57,16 +57,17 @@ def query_ollama(text: str) -> dict:
 def run_llm_enrichment():
     df = pd.read_csv(INPUT_CSV)
 
+    # Add enrichment columns if missing
     for col in ["keywords", "normalized_industry", "company_size", "products_offered", "services_offered"]:
         if col not in df.columns:
             df[col] = None
 
     for idx, row in df.iterrows():
-        if pd.isna(row.get("excess_data")):
+        if pd.isna(row.get("raw_text")):
             continue
 
-        print(f"✨ Enriching {row.get('company_name', 'Unknown')} ...")
-        enrichment = query_ollama(row["excess_data"][:2000])  # truncate for prompt length
+        print(f"Enriching {row.get('entity_name', 'Unknown')} ...")
+        enrichment = query_ollama(row["raw_text"][:2000])  # shorten context
 
         for key, value in enrichment.items():
             if value:
@@ -78,5 +79,3 @@ def run_llm_enrichment():
 
     df.to_csv(OUTPUT_CSV, index=False)
     print(f"LLM enrichment saved to {OUTPUT_CSV}")
-
-
