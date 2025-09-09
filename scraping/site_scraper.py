@@ -2,9 +2,16 @@ import re
 import requests
 import pandas as pd
 from bs4 import BeautifulSoup
+import os
+import sys
 
-INPUT_CSV = "data/output/rrr_data_with_websites.csv"
-OUTPUT_CSV = "data/output/rrr_data_enriched.csv"
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(CURRENT_DIR)
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+INPUT_CSV = os.path.join(PROJECT_ROOT, "data", "output", "rrr_data_with_websites.csv")
+OUTPUT_CSV = os.path.join(PROJECT_ROOT, "data", "output", "rrr_data_enriched.csv")
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "

@@ -13,8 +13,10 @@ from scraping.site_scraper import run_site_scraper
 from enrichment.ollama_integration import run_llm_enrichment
 
 
-INPUT_CSV = "data/input/rrr_data.csv"
-GOOGLE_OUTPUT_CSV = "data/output/rrr_data_with_websites.csv"
+INPUT_CSV = os.path.join(PROJECT_ROOT, "data", "output", "rrr_data_enriched.csv")
+
+GOOGLE_OUTPUT_CSV = os.path.join(PROJECT_ROOT, "data", "output", "rrr_data_with_websites.csv")
+
 
 
 def main():
@@ -24,10 +26,10 @@ def main():
         raise FileNotFoundError(f"Input CSV not found at {INPUT_CSV}")
 
     print("[1/4] Running Google search to find company websites...")
-    run_google_search(INPUT_CSV, GOOGLE_OUTPUT_CSV)
+    #run_google_search(INPUT_CSV, GOOGLE_OUTPUT_CSV)
 
     print("[2/4] Scraping company websites for contact and social data...")
-    run_site_scraper()
+    #run_site_scraper()
 
     print("[3/4] Enriching data via LLM (Ollama)...")
     run_llm_enrichment()

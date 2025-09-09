@@ -1,9 +1,16 @@
 import pandas as pd
 import subprocess
 import json
+import os
+import sys
 
-INPUT_CSV = "output/rrr_data_enriched.csv"
-OUTPUT_CSV = "output/rrr_data_llm.csv"
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(CURRENT_DIR)
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+INPUT_CSV = os.path.join(PROJECT_ROOT,"data", "output", "rrr_data_enriched.csv")
+OUTPUT_CSV = os.path.join(PROJECT_ROOT, "data", "output", "rrr_data_llm.csv")
 
 
 def query_ollama(text: str) -> dict:
