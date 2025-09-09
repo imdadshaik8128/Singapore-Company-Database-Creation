@@ -33,24 +33,53 @@ def clean_company_name(company_name):
                   '', company_name, flags=re.I).strip()
 
 def is_company_match(url, company_name):
-    """Check if a URL matches company name rules"""
     if not url or not company_name:
         return False
 
-    clean_url = url.lower()
-    if ".sg" not in clean_url:
-        return False
-    if "companies" in clean_url or "google" in clean_url:
+    clean_url = url.lower().strip()
+
+    # Reject blacklisted sites
+    blacklist = [
+        "companies", "google", "facebook", "linkedin", "youtube", "wikipedia",
+        "yellowpages", "sgpbusiness", "carousell", "shopee", "streetdirectory",
+        "seair", "abillion", "scam", "tradegecko", "kompass"
+    ]
+    if any(bad in clean_url for bad in blacklist):
         return False
 
-    # Basic heuristic: company word must appear in domain
-    cleaned_name = clean_company_name(company_name)
+    # Extract domain part (between // and first /)
+    try:
+        domain_start = clean_url.find("://") + 3 if "://" in clean_url else 0
+        slash_pos = clean_url.find("/", domain_start)
+        domain = clean_url[domain_start:slash_pos] if slash_pos > 0 else clean_url[domain_start:]
+        path = clean_url[slash_pos:] if slash_pos > 0 else ""
+    except Exception:
+        return False
+
+    # Check requirement: must contain .sg in domain OR /sg in path
+    if ".sg" not in domain:
+        return False
+
+    # Clean company name
+    cleaned_name = re.sub(
+        r"\b(pte ltd|ltd|pty ltd|private limited|company limited|co ltd|&|and)\b",
+        "",
+        company_name,
+        flags=re.I
+    ).strip()
     company_words = [w.lower() for w in cleaned_name.split() if len(w) > 2]
 
+    if not company_words:
+        return False
+
+    # Check if any company word appears in domain or path
     for word in company_words:
-        if word in clean_url:
+        if word in domain or word in path:
             return True
+
     return False
+
+
 
 def find_website(driver, company_name):
     """Perform Google search and return best website"""
@@ -73,7 +102,7 @@ def find_website(driver, company_name):
             EC.presence_of_element_located((By.NAME, "q"))
         )
         search_box.clear()
-        search_box.send_keys(f'"{clean_company_name(company_name)}" Singapore site:.sg')
+        search_box.send_keys(f'"{company_name}"')
         search_box.send_keys(Keys.RETURN)
         time.sleep(2)
 
